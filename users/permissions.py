@@ -1,9 +1,8 @@
-# users/permissions.py - COMPLETE FILE
+# users/permissions.py
 from rest_framework import permissions
 
 
 class IsCashier(permissions.BasePermission):
-    """Allow access only to cashier or admin"""
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -12,7 +11,6 @@ class IsCashier(permissions.BasePermission):
 
 
 class IsAccountant(permissions.BasePermission):
-    """Allow access only to accountant or admin"""
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -21,7 +19,6 @@ class IsAccountant(permissions.BasePermission):
 
 
 class IsStoreKeeper(permissions.BasePermission):
-    """Allow access only to store keeper or admin"""
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -30,7 +27,6 @@ class IsStoreKeeper(permissions.BasePermission):
 
 
 class IsAdmin(permissions.BasePermission):
-    """Allow access only to administrator"""
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False

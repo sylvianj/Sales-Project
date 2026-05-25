@@ -10,16 +10,17 @@ class Customer(models.Model):
     account_ref = models.CharField(max_length=50, unique=True, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def save(self, *args, **kwargs):
         if not self.account_ref:
             self.account_ref = f"CUST{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
-        return f"{self.name}"
-    
+        return self.name
+
     class Meta:
         db_table = 'customers'
