@@ -15,7 +15,7 @@ MPESA_CONFIG = {k: os.getenv(k) for k in ['MPESA_ENVIRONMENT', 'MPESA_CONSUMER_K
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-7$2!n@x9q#k%m&p*w(e)r+t_y=u+i*o?l<{>}~`|')
-DEBUG = False
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
