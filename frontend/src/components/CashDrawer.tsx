@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Badge } from './ui/badge';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { DollarSign, Clock } from 'lucide-react';
 import { formatCurrency } from './utils/helpers';
 import type { DayBalance } from './pages/POSPageEnhanced';
 
@@ -27,8 +26,11 @@ interface CashDrawerProps {
   dayBalance: DayBalance;
   cashSalesToday: number;
   onOpenDay: (openingBalance: number) => void;
+  // Closing is automatic (24h after opening); kept for interface compatibility.
   onCloseDay: (closingBalance: number) => void;
 }
+
+const DRAWER_DURATION_MS = 24 * 60 * 60 * 1000;
 
 export function CashDrawer({
   isOpen,
@@ -36,50 +38,26 @@ export function CashDrawer({
   cashier,
   dayBalance,
   cashSalesToday,
-  onOpenDay,
-  onCloseDay
+  onOpenDay
 }: CashDrawerProps) {
   const [openingBalance, setOpeningBalance] = useState(dayBalance.openingBalance.toString());
-  const [closingBalance, setClosingBalance] = useState('');
-  const [discrepancy, setDiscrepancy] = useState<number>(0);
-  const expectedClosingBalance = dayBalance.openingBalance + cashSalesToday;
+  const expectedBalance = dayBalance.openingBalance + cashSalesToday;
 
   const handleOpenDrawer = (e: React.FormEvent) => {
     e.preventDefault();
     if (openingBalance && parseFloat(openingBalance) >= 0) {
       onOpenDay(parseFloat(openingBalance));
-      setDiscrepancy(0);
-    }
-  };
-
-  const handleCloseDrawer = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (closingBalance) {
-      const closing = parseFloat(closingBalance);
-      const diff = closing - expectedClosingBalance;
-      setDiscrepancy(diff);
-      onCloseDay(closing);
-      
-      alert(`
-        Drawer Closed
-        Opening Balance: ${formatCurrency(dayBalance.openingBalance)}
-        Cash Sales: ${formatCurrency(cashSalesToday)}
-        Expected Total: ${formatCurrency(expectedClosingBalance)}
-        Actual Closing: ${formatCurrency(closing)}
-        ${diff === 0 ? '✓ Balanced' : diff > 0 ? `⚠ Overage: ${formatCurrency(Math.abs(diff))}` : `✗ Shortage: ${formatCurrency(Math.abs(diff))}`}
-      `);
-      
-      setClosingBalance('');
       onOpenChange(false);
     }
   };
 
-  const today = new Date().toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
 
+  // ---- Drawer CLOSED: prompt for opening balance only ----
   if (dayBalance.status === 'closed') {
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -118,6 +96,10 @@ export function CashDrawer({
                 />
               </div>
             </div>
+            <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>The drawer will close automatically 24 hours after opening.</span>
+            </div>
             <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
               Open Drawer
             </Button>
@@ -126,6 +108,11 @@ export function CashDrawer({
       </Dialog>
     );
   }
+
+  // ---- Drawer OPEN: informational only, closes automatically ----
+  const autoCloseAt = dayBalance.openedAt
+    ? new Date(dayBalance.openedAt + DRAWER_DURATION_MS)
+    : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -137,7 +124,7 @@ export function CashDrawer({
       </DialogTrigger>
       <DialogContent className="bg-white border-gray-200 max-w-md">
         <DialogHeader>
-          <DialogTitle>Close Cash Drawer</DialogTitle>
+          <DialogTitle>Cash Drawer Status</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Card className="border-blue-200 bg-blue-50">
@@ -153,57 +140,24 @@ export function CashDrawer({
                 </div>
                 <div className="col-span-2">
                   <p className="text-xs text-gray-600 mb-1">Expected Balance</p>
-                  <p className="text-lg font-bold text-gray-900">{formatCurrency(expectedClosingBalance)}</p>
+                  <p className="text-lg font-bold text-gray-900">{formatCurrency(expectedBalance)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <form onSubmit={handleCloseDrawer} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-600">Closing Balance</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">KSh </span>
-                <Input
-                  type="number"
-                  value={closingBalance}
-                  onChange={(e) => setClosingBalance(e.target.value)}
-                  className="pl-12 bg-white border-gray-300"
-                  placeholder="0.00"
-                  step="0.01"
-                  required
-                />
-              </div>
-            </div>
-            
-            {closingBalance && (
-              <div className={`p-3 rounded-lg border ${
-                Math.abs(parseFloat(closingBalance) - expectedClosingBalance) < 0.01
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-orange-50 border-orange-200'
-              }`}>
-                <div className="flex items-center gap-2 mb-2">
-                  {Math.abs(parseFloat(closingBalance) - expectedClosingBalance) < 0.01 ? (
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 text-orange-600" />
-                  )}
-                  <p className="text-xs text-gray-600">Drawer Variance</p>
-                </div>
-                <p className={`font-bold text-lg ${
-                  Math.abs(parseFloat(closingBalance) - expectedClosingBalance) < 0.01
-                    ? 'text-green-600' 
-                    : 'text-orange-600'
-                }`}>
-                  {formatCurrency(parseFloat(closingBalance) - expectedClosingBalance)}
-                </p>
-              </div>
-            )}
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>
+              This drawer closes automatically
+              {autoCloseAt ? ` on ${autoCloseAt.toLocaleString()}` : ' 24 hours after opening'}.
+              No manual closing balance is required.
+            </span>
+          </div>
 
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
-              Finalize & Close Drawer
-            </Button>
-          </form>
+          <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

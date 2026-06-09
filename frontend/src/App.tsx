@@ -52,8 +52,30 @@ const initialDayBalance: DayBalance = {
   date: todayKey(),
   openingBalance: 0,
   closingBalance: null,
-  status: 'closed'
+  status: 'closed',
+  openedAt: null
 };
+
+// Cash drawer auto-closes 24 hours after it is opened.
+const DRAWER_DURATION_MS = 24 * 60 * 60 * 1000;
+const DRAWER_STORAGE_KEY = 'pos_day_balance';
+
+// Restore the drawer across page reloads; auto-close if 24h already elapsed.
+function loadDayBalance(): DayBalance {
+  try {
+    const raw = localStorage.getItem(DRAWER_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as DayBalance;
+      if (saved.status === 'open' && saved.openedAt && Date.now() - saved.openedAt >= DRAWER_DURATION_MS) {
+        return { ...saved, status: 'closed', closingBalance: saved.openingBalance, openedAt: null };
+      }
+      return saved;
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return initialDayBalance;
+}
 
 export function App() {
   const [activeItem, setActiveItem] = useState('dashboard');
@@ -67,7 +89,7 @@ export function App() {
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [supplierInvoices, setSupplierInvoices] = useState<SupplierOrderInvoice[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
-  const [dayBalance, setDayBalance] = useState<DayBalance>(initialDayBalance);
+  const [dayBalance, setDayBalance] = useState<DayBalance>(loadDayBalance);
   const [openAddProductSignal, setOpenAddProductSignal] = useState(0);
   const [openAddCustomerSignal, setOpenAddCustomerSignal] = useState(0);
   const [openAddInventorySignal, setOpenAddInventorySignal] = useState(0);
@@ -83,6 +105,32 @@ export function App() {
       .filter(sale => sale.timestamp.toISOString().slice(0, 10) === date)
       .reduce((sum, sale) => sum + sale.cashAmount, 0);
   }, [completedSales]);
+
+  // Persist the drawer so it (and its 24h timer) survives page reloads.
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAWER_STORAGE_KEY, JSON.stringify(dayBalance));
+    } catch {
+      /* ignore */
+    }
+  }, [dayBalance]);
+
+  // Auto-close the drawer exactly 24 hours after it was opened.
+  useEffect(() => {
+    if (dayBalance.status !== 'open' || !dayBalance.openedAt) return;
+    const closeDrawer = () => setDayBalance(prev =>
+      prev.status === 'open'
+        ? { ...prev, status: 'closed', closingBalance: prev.openingBalance + cashSalesToday, openedAt: null }
+        : prev
+    );
+    const remaining = dayBalance.openedAt + DRAWER_DURATION_MS - Date.now();
+    if (remaining <= 0) {
+      closeDrawer();
+      return;
+    }
+    const timer = setTimeout(closeDrawer, remaining);
+    return () => clearTimeout(timer);
+  }, [dayBalance.status, dayBalance.openedAt, cashSalesToday]);
 
   const refreshBackendData = async () => {
     setLoadError('');
@@ -241,8 +289,8 @@ export function App() {
             products={products}
             dayBalance={dayBalance}
             onTransactionComplete={handleTransactionComplete}
-            onOpenDay={(openingBalance) => setDayBalance({ date: todayKey(), openingBalance, closingBalance: null, status: 'open' })}
-            onCloseDay={(closingBalance) => setDayBalance(previous => ({ ...previous, closingBalance, status: 'closed' }))}
+            onOpenDay={(openingBalance) => setDayBalance({ date: todayKey(), openingBalance, closingBalance: null, status: 'open', openedAt: Date.now() })}
+            onCloseDay={(closingBalance) => setDayBalance(previous => ({ ...previous, closingBalance, status: 'closed', openedAt: null }))}
             cashSalesToday={cashSalesToday}
           />
         );

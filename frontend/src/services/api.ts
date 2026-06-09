@@ -251,7 +251,7 @@ export async function registerAccount(payload: {
   password: string;
   role: RegistrationRole;
 }) {
-  return request('/accounts/register/', {
+  return request('/users/register/', {
     method: 'POST',
     auth: false,
     body: JSON.stringify(payload)
@@ -433,7 +433,7 @@ export async function createSupplier(payload: {
   phone?: string;
   address?: string;
 }): Promise<BackendSupplier> {
-  const data = await request<any>('/products/suppliers/', {
+  const data = await request<any>('/suppliers/', {
     method: 'POST',
     body: JSON.stringify(payload)
   });
@@ -467,7 +467,7 @@ export async function updateUser(_userId: number, user: Partial<BackendUser>): P
 }
 
 export async function deactivateUser(userId: number) {
-  return request(`/accounts/users/${userId}/deactivate/`, { method: 'POST' });
+  return request(`/users/${userId}/deactivate/`, { method: 'POST' });
 }
 
 export async function initiateMpesaPayment(payload: any) {

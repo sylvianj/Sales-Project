@@ -84,6 +84,7 @@ export interface DayBalance {
   openingBalance: number;
   closingBalance: number | null;
   status: 'open' | 'closed';
+  openedAt: number | null;
 }
 
 interface POSPageProps {

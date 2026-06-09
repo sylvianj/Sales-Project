@@ -24,7 +24,9 @@ class AuthViewSet(viewsets.ViewSet):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'roles': roles
+            'roles': roles,
+            'role': roles[0] if roles else ('admin' if user.is_superuser else 'cashier'),
+            'is_active': user.is_active,
         }
 
     def _verify_2fa(self, user, code=None, backup_code=None):
@@ -126,6 +128,46 @@ class AuthViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def me(self, request):
         return Response(self._get_user_data(request.user))
+
+    def list(self, request):
+        """GET /api/users/  -> list all users (for the Users management page)."""
+        return Response([self._get_user_data(u) for u in User.objects.all().order_by('username')])
+
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def register(self, request):
+        """POST /api/users/register/ -> create a user and assign a role."""
+        data = request.data
+        username = data.get('username')
+        password = data.get('password')
+        if not username or not password:
+            return Response({'message': 'Username and password are required'}, status=400)
+        if User.objects.filter(username=username).exists():
+            return Response({'message': 'Username already taken', 'username': ['Already taken']}, status=400)
+
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=data.get('email', '') or '',
+            first_name=data.get('first_name', '') or '',
+            last_name=data.get('last_name', '') or '',
+        )
+        role_name = data.get('role')
+        if role_name:
+            role, _ = Role.objects.get_or_create(name=role_name)
+            UserRole.objects.get_or_create(user=user, role=role)
+
+        return Response({'message': 'Account created', 'user': self._get_user_data(user)}, status=201)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def deactivate(self, request, pk=None):
+        """POST /api/users/{id}/deactivate/ -> disable a user account."""
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({'message': 'User not found'}, status=404)
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+        return Response({'message': 'User deactivated', 'user': self._get_user_data(user)})
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def setup_2fa(self, request):
