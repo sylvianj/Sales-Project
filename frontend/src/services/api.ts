@@ -470,6 +470,10 @@ export async function deactivateUser(userId: number) {
   return request(`/users/${userId}/deactivate/`, { method: 'POST' });
 }
 
+export async function approveUser(userId: number) {
+  return request(`/users/${userId}/approve/`, { method: 'POST' });
+}
+
 export async function initiateMpesaPayment(payload: any) {
   const body = typeof payload === 'object' && payload !== null
     ? {

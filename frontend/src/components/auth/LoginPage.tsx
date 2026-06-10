@@ -89,7 +89,7 @@ export function LoginPage({ onLogin, onVerifyTwoFactor }: LoginPageProps) {
 
       setEmail(createUsername.trim());
       setPassword('');
-      setCreateMessage('Account created. Sign in with your new password.');
+      setCreateMessage('Account created. An admin must approve it before you can sign in.');
       setCreateUsername('');
       setCreateEmail('');
       setCreatePassword('');
@@ -98,7 +98,7 @@ export function LoginPage({ onLogin, onVerifyTwoFactor }: LoginPageProps) {
       setTimeout(() => {
         setIsCreateOpen(false);
         setCreateMessage('');
-      }, 1600);
+      }, 4000);
     } catch (error) {
       console.error(error);
       setCreateError(error instanceof Error ? error.message : 'Account could not be created.');
@@ -246,7 +246,6 @@ export function LoginPage({ onLogin, onVerifyTwoFactor }: LoginPageProps) {
                         onChange={(e) => setCreateRole(e.target.value as RegistrationRole)}
                         className="w-full h-10 rounded-md border border-gray-200 bg-gray-100 px-3 text-sm text-gray-900"
                       >
-                        <option value="admin">Admin</option>
                         <option value="accountant">Accountant</option>
                         <option value="cashier">Cashier</option>
                         <option value="storekeeper">Storekeeper</option>

@@ -15,6 +15,7 @@ import { UsersPage } from './components/pages/UsersPage';
 import { SettingsPage } from './components/pages/SettingsPage';
 import {
   adjustInventory,
+  approveUser,
   createProduct,
   createCustomer,
   createSale,
@@ -90,7 +91,6 @@ export function App() {
   const [supplierInvoices, setSupplierInvoices] = useState<SupplierOrderInvoice[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [dayBalance, setDayBalance] = useState<DayBalance>(loadDayBalance);
-  const [openAddProductSignal, setOpenAddProductSignal] = useState(0);
   const [openAddCustomerSignal, setOpenAddCustomerSignal] = useState(0);
   const [openAddInventorySignal, setOpenAddInventorySignal] = useState(0);
   const [openNewInvoiceSignal, setOpenNewInvoiceSignal] = useState(0);
@@ -264,8 +264,9 @@ export function App() {
   const handleQuickAction = (action: QuickActionId) => {
     if (action === 'new-sale') setActiveItem('pos');
     if (action === 'add-product') {
-      setActiveItem('products');
-      setOpenAddProductSignal(signal => signal + 1);
+      // Products are added from Inventory (the Products page is read-only).
+      setActiveItem('inventory');
+      setOpenAddInventorySignal(signal => signal + 1);
     }
     if (action === 'add-customer') {
       setActiveItem('customers');
@@ -298,10 +299,7 @@ export function App() {
         return (
           <ProductsPageEnhanced
             products={products}
-            openAddProductSignal={openAddProductSignal}
-            onProductCreated={handleCreateProduct}
-            onProductUpdated={handleUpdateProduct}
-            onProductDeleted={handleDeleteProduct}
+            readOnly
           />
         );
       case 'inventory':
@@ -374,6 +372,10 @@ export function App() {
             onDeactivateUser={async (id) => {
               await deactivateUser(id);
               setUsers(previous => previous.map(item => item.id === id ? { ...item, is_active: false } : item));
+            }}
+            onApproveUser={async (id) => {
+              await approveUser(id);
+              setUsers(previous => previous.map(item => item.id === id ? { ...item, is_active: true } : item));
             }}
           />
         );

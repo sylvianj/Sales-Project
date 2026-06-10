@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django_otp import devices_for_user
 from django_otp.plugins.otp_totp.models import TOTPDevice
-from .models import UserRole, User2FA, BlacklistedToken
+from .models import Role, UserRole, User2FA, BlacklistedToken
 
 class AuthViewSet(viewsets.ViewSet):
     """Authentication endpoints (login, logout, refresh, 2FA)"""
@@ -56,8 +56,19 @@ class AuthViewSet(viewsets.ViewSet):
             return Response({'error': 'Username and password required'}, status=400)
 
         user = authenticate(username=username, password=password)
-        if not user or not user.is_active:
-            return Response({'error': 'Invalid credentials' if not user else 'Account disabled'}, status=401)
+        if not user:
+            # authenticate() also returns None for inactive accounts; distinguish the two
+            # so a pending user gets a helpful message instead of "invalid credentials".
+            try:
+                existing = User.objects.get(username=username)
+                if not existing.is_active and existing.check_password(password):
+                    return Response(
+                        {'error': 'Your account is awaiting admin approval (or has been disabled).'},
+                        status=401,
+                    )
+            except User.DoesNotExist:
+                pass
+            return Response({'error': 'Invalid credentials'}, status=401)
 
         # Check 2FA requirement
         try:
@@ -135,7 +146,7 @@ class AuthViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):
-        """POST /api/users/register/ -> create a user and assign a role."""
+        """POST /api/users/register/ -> create a PENDING user (inactive until an admin approves)."""
         data = request.data
         username = data.get('username')
         password = data.get('password')
@@ -144,6 +155,11 @@ class AuthViewSet(viewsets.ViewSet):
         if User.objects.filter(username=username).exists():
             return Response({'message': 'Username already taken', 'username': ['Already taken']}, status=400)
 
+        # Nobody can self-register as an admin; admins are created by an existing admin.
+        role_name = data.get('role')
+        if role_name in ('admin', 'super_admin'):
+            return Response({'message': 'You cannot register as an admin. Choose another role.'}, status=400)
+
         user = User.objects.create_user(
             username=username,
             password=password,
@@ -151,12 +167,28 @@ class AuthViewSet(viewsets.ViewSet):
             first_name=data.get('first_name', '') or '',
             last_name=data.get('last_name', '') or '',
         )
-        role_name = data.get('role')
+        user.is_active = False  # pending admin approval
+        user.save(update_fields=['is_active'])
+
         if role_name:
             role, _ = Role.objects.get_or_create(name=role_name)
             UserRole.objects.get_or_create(user=user, role=role)
 
-        return Response({'message': 'Account created', 'user': self._get_user_data(user)}, status=201)
+        return Response({
+            'message': 'Account created. An admin must approve it before you can sign in.',
+            'user': self._get_user_data(user),
+        }, status=201)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def approve(self, request, pk=None):
+        """POST /api/users/{id}/approve/ -> activate a pending account (admin only)."""
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({'message': 'User not found'}, status=404)
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        return Response({'message': 'User approved', 'user': self._get_user_data(user)})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def deactivate(self, request, pk=None):

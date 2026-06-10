@@ -25,6 +25,7 @@ interface UsersPageProps {
   onCreateUser: (user: { username: string; email: string; password: string; role: RegistrationRole | BackendRole }) => Promise<void>;
   onUpdateUser: (userId: number, data: { role?: BackendRole; is_active?: boolean }) => Promise<void>;
   onDeactivateUser: (userId: number) => Promise<void>;
+  onApproveUser: (userId: number) => Promise<void>;
 }
 
 const roleLabel = (role: string) => {
@@ -42,7 +43,7 @@ const roleLabel = (role: string) => {
   return labels[role] || role;
 };
 
-export function UsersPage({ users, onCreateUser, onUpdateUser, onDeactivateUser }: UsersPageProps) {
+export function UsersPage({ users, onCreateUser, onUpdateUser, onDeactivateUser, onApproveUser }: UsersPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -139,6 +140,15 @@ export function UsersPage({ users, onCreateUser, onUpdateUser, onDeactivateUser 
       await onDeactivateUser(user.id);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'User could not be deactivated.');
+    }
+  };
+
+  const handleApproveUser = async (user: BackendUser) => {
+    setFormError('');
+    try {
+      await onApproveUser(user.id);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'User could not be approved.');
     }
   };
 
@@ -355,6 +365,17 @@ export function UsersPage({ users, onCreateUser, onUpdateUser, onDeactivateUser 
                   <TableCell>{getStatusBadge(user.is_active ? 'active' : 'inactive')}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
+                      {!user.is_active && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-green-600 hover:text-green-700"
+                          title="Approve account"
+                          onClick={() => handleApproveUser(user)}
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-300" onClick={() => openEditDialog(user)}>
                         <Edit className="w-4 h-4" />
                       </Button>
