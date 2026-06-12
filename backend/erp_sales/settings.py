@@ -12,10 +12,12 @@ except ImportError:
 
 # M-Pesa Configuration
 MPESA_CONFIG = {k: os.getenv(k) for k in ['MPESA_ENVIRONMENT', 'MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET', 'MPESA_SHORTCODE', 'MPESA_PASSKEY']}
+# Public URL Safaricom posts the payment result to (e.g. an ngrok https URL in dev)
+MPESA_CALLBACK_URL = os.getenv('MPESA_CALLBACK_URL')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-7$2!n@x9q#k%m&p*w(e)r+t_y=u+i*o?l<{>}~`|')
-DEBUG = False
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -113,8 +115,8 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True   # For development only
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://.com"
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 
